@@ -41,5 +41,21 @@ autenticação e pode ser falsificado; esta identificação é apenas didática.
 
 ---
 
+## Frontend
+
+Com o backend em execução, instale as dependências e inicie o frontend:
+
+```sh
+cd frontend
+npm install
+npm run dev
+```
+
+Acesse o endereço informado pelo Vite. O proxy encaminha requisições `/api`
+para o backend na porta 3000. Informe um usuário para enviar, listar e baixar
+seus documentos.
+
+---
+
 &copy; 2025 GitHub &bull; [Code of Conduct](https://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md) &bull; [MIT License](https://gh.io/mit)
 

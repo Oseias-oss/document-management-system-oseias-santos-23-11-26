@@ -142,8 +142,9 @@ Fluxo de dependência: `routes -> controllers -> services -> repositories`.
 ### Frontend (componentes)
 
 - `pages/DocumentsPage.jsx` - página principal
-- `components/UploadForm.jsx` - formulário de envio
-- `components/DocumentList.jsx` - tabela de documentos com botão de download
+- `components/UploadComponent.jsx` - formulário de envio
+- `components/DocumentList.jsx` - tabela de documentos
+- `components/DownloadButton.jsx` - ação de download
 - `services/documentApi.js` - chamadas `fetch` para `/api/upload`, `/api/documents` e `/api/documents/:id/download`
 - `App.jsx` renderiza `DocumentsPage`
 
@@ -178,7 +179,7 @@ Cada etapa deve ser concluída e testada antes da seguinte.
 4. **Controller, rotas e tratamento de erros**: `controllers/documentController.js`, `controllers/errorController.js`, `routes/documentRoutes.js`, integração em `app.js`.
 5. **Testes de API**: `backend/test/documents.test.js`, executados com `npm test`.
 6. **Seed do frontend**: `services/documentApi.js`, `pages/DocumentsPage.jsx`, `App.jsx`.
-7. **Componentes de upload e listagem**: `components/UploadForm.jsx`, `components/DocumentList.jsx`.
+7. **Componentes de upload e listagem**: `components/UploadComponent.jsx`, `components/DocumentList.jsx`, `components/DownloadButton.jsx`.
 8. **Integração**: proxy `/api` em `frontend/vite.config.js` e fluxo ponta a ponta.
 9. **Documentação de execução**: `README.md` com variáveis de ambiente, comandos e limitações da fase.
 
