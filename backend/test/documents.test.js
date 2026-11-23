@@ -34,6 +34,32 @@ function uploadFile(userId, content = 'conteudo de teste', name = 'teste.txt', t
   return fetch(`${baseUrl}/upload`, { method: 'POST', headers, body: form });
 }
 
+test('fluxo completo de upload, listagem e download', async () => {
+  const headers = { 'X-User-Id': 'fluxo-completo' };
+  const initialList = await fetch(`${baseUrl}/documents`, { headers });
+  assert.strictEqual(initialList.status, 200);
+  assert.deepStrictEqual(await initialList.json(), []);
+
+  const uploadResponse = await uploadFile('fluxo-completo', 'abc', 'fluxo.txt');
+  assert.strictEqual(uploadResponse.status, 201);
+  const document = await uploadResponse.json();
+  assert.strictEqual(document.originalName, 'fluxo.txt');
+  assert.strictEqual(document.mimeType, 'text/plain');
+  assert.strictEqual(document.size, 3);
+  assert.strictEqual(document.owner, 'fluxo-completo');
+  assert.ok(document.id);
+  assert.ok(!Number.isNaN(Date.parse(document.uploadedAt)));
+  assert.strictEqual(document.storedName, undefined);
+
+  const listResponse = await fetch(`${baseUrl}/documents`, { headers });
+  assert.strictEqual(listResponse.status, 200);
+  assert.deepStrictEqual(await listResponse.json(), [document]);
+
+  const downloadResponse = await fetch(`${baseUrl}/documents/${document.id}/download`, { headers });
+  assert.strictEqual(downloadResponse.status, 200);
+  assert.strictEqual(await downloadResponse.text(), 'abc');
+});
+
 test('upload exige o cabeçalho X-User-Id', async () => {
   const response = await uploadFile(null);
   assert.strictEqual(response.status, 400);
