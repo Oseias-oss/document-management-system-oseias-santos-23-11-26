@@ -1,16 +1,22 @@
 import { useState } from 'react';
 import { uploadDocument } from '../services/documentApi';
 
-export default function UploadForm({ userId, onUploaded }) {
+export default function UploadComponent({ userId, onUploaded }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   async function handleSubmit(event) {
     event.preventDefault();
+    const form = event.currentTarget;
 
     if (!selectedFile) {
       setErrorMessage('Selecione um arquivo antes de enviar.');
+      return;
+    }
+
+    if (!userId.trim()) {
+      setErrorMessage('Informe o usuário antes de enviar.');
       return;
     }
 
@@ -20,7 +26,7 @@ export default function UploadForm({ userId, onUploaded }) {
     try {
       await uploadDocument(selectedFile, userId);
       setSelectedFile(null);
-      event.target.reset();
+      form.reset();
       onUploaded();
     } catch (error) {
       setErrorMessage(error.message);
@@ -31,11 +37,14 @@ export default function UploadForm({ userId, onUploaded }) {
 
   return (
     <form onSubmit={handleSubmit}>
-      <input
-        type="file"
-        disabled={isSubmitting}
-        onChange={(event) => setSelectedFile(event.target.files[0] ?? null)}
-      />
+      <label>
+        Arquivo:{' '}
+        <input
+          type="file"
+          disabled={isSubmitting}
+          onChange={(event) => setSelectedFile(event.target.files[0] ?? null)}
+        />
+      </label>
       <button type="submit" disabled={isSubmitting}>
         {isSubmitting ? 'Enviando...' : 'Enviar documento'}
       </button>

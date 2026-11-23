@@ -1,3 +1,5 @@
+import DownloadButton from './DownloadButton';
+
 export default function DocumentList({ documents, onDownload }) {
   if (documents.length === 0) {
     return <p>Nenhum documento enviado.</p>;
@@ -20,9 +22,7 @@ export default function DocumentList({ documents, onDownload }) {
             <td>{item.size}</td>
             <td>{new Date(item.uploadedAt).toLocaleString('pt-BR')}</td>
             <td>
-              <button type="button" onClick={() => onDownload(item)}>
-                Baixar
-              </button>
+              <DownloadButton document={item} onDownload={onDownload} />
             </td>
           </tr>
         ))}

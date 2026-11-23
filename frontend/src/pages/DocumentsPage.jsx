@@ -1,35 +1,47 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import DocumentList from '../components/DocumentList';
-import UploadForm from '../components/UploadForm';
+import UploadComponent from '../components/UploadComponent';
 import { downloadDocument, listDocuments } from '../services/documentApi';
 
 const DEFAULT_USER_ID = 'usuario-1';
 
 export default function DocumentsPage() {
   const [userId, setUserId] = useState(DEFAULT_USER_ID);
-  const [documents, setDocuments] = useState([]);
-  const [errorMessage, setErrorMessage] = useState('');
-
-  const loadDocuments = useCallback(async () => {
-    try {
-      setDocuments(await listDocuments(userId));
-      setErrorMessage('');
-    } catch (error) {
-      setErrorMessage(error.message);
-    }
-  }, [userId]);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [listState, setListState] = useState({ userId: null, documents: [], isLoading: true, errorMessage: '' });
+  const [downloadError, setDownloadError] = useState(null);
 
   useEffect(() => {
-    loadDocuments();
-  }, [loadDocuments]);
+    let active = true;
+
+    if (!userId.trim()) {
+      setListState({ userId, documents: [], isLoading: false, errorMessage: 'Informe o usuário para listar documentos.' });
+      return () => { active = false; };
+    }
+
+    setListState({ userId, documents: [], isLoading: true, errorMessage: '' });
+    listDocuments(userId).then(
+      (documents) => {
+        if (active) setListState({ userId, documents, isLoading: false, errorMessage: '' });
+      },
+      (error) => {
+        if (active) setListState({ userId, documents: [], isLoading: false, errorMessage: error.message });
+      },
+    );
+
+    return () => { active = false; };
+  }, [userId, refreshVersion]);
 
   async function handleDownload(item) {
+    setDownloadError(null);
     try {
       await downloadDocument(item, userId);
     } catch (error) {
-      setErrorMessage(error.message);
+      setDownloadError({ userId, message: error.message });
     }
   }
+
+  const isLoading = listState.userId !== userId || listState.isLoading;
 
   return (
     <main style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem' }}>
@@ -42,13 +54,23 @@ export default function DocumentsPage() {
 
       <section>
         <h2>Enviar documento</h2>
-        <UploadForm userId={userId} onUploaded={loadDocuments} />
+        <UploadComponent
+          key={userId}
+          userId={userId}
+          onUploaded={() => setRefreshVersion((version) => version + 1)}
+        />
       </section>
 
       <section>
         <h2>Meus documentos</h2>
-        {errorMessage && <p role="alert">{errorMessage}</p>}
-        <DocumentList documents={documents} onDownload={handleDownload} />
+        {downloadError?.userId === userId && <p role="alert">{downloadError.message}</p>}
+        {isLoading ? (
+          <p>Carregando documentos...</p>
+        ) : listState.errorMessage ? (
+          <p role="alert">{listState.errorMessage}</p>
+        ) : (
+          <DocumentList documents={listState.documents} onDownload={handleDownload} />
+        )}
       </section>
     </main>
   );
