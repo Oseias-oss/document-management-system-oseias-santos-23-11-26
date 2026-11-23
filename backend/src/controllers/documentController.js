@@ -28,6 +28,7 @@ function list(req, res) {
 function download(req, res, next) {
   const { filePath, originalName, mimeType } = documentService.getDownloadInfo(req.params.id, req.owner);
 
+  res.set('X-Content-Type-Options', 'nosniff');
   res.attachment(originalName);
   res.type(mimeType);
   res.sendFile(filePath, (error) => {

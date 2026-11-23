@@ -33,9 +33,10 @@ export async function uploadDocument(file, userId) {
   return response.json();
 }
 
-export async function listDocuments(userId) {
+export async function listDocuments(userId, options = {}) {
   const response = await request(`${API_BASE_URL}/documents`, {
     headers: { 'X-User-Id': userId },
+    signal: options.signal,
   });
 
   return response.json();

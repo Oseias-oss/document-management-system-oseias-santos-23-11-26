@@ -13,23 +13,33 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
 
     if (!userId.trim()) {
       setListState({ userId, documents: [], isLoading: false, errorMessage: 'Informe o usuário para listar documentos.' });
-      return () => { active = false; };
+      return () => {
+        active = false;
+        controller.abort();
+      };
     }
 
     setListState({ userId, documents: [], isLoading: true, errorMessage: '' });
-    listDocuments(userId).then(
-      (documents) => {
-        if (active) setListState({ userId, documents, isLoading: false, errorMessage: '' });
-      },
-      (error) => {
-        if (active) setListState({ userId, documents: [], isLoading: false, errorMessage: error.message });
-      },
-    );
+    const timeoutId = setTimeout(() => {
+      listDocuments(userId, { signal: controller.signal }).then(
+        (documents) => {
+          if (active) setListState({ userId, documents, isLoading: false, errorMessage: '' });
+        },
+        (error) => {
+          if (active) setListState({ userId, documents: [], isLoading: false, errorMessage: error.message });
+        },
+      );
+    }, 250);
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [userId, refreshVersion]);
 
   async function handleDownload(item) {

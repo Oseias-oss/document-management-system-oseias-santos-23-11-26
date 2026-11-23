@@ -123,6 +123,13 @@ No frontend, as chamadas usam o prefixo `/api` (proxy do Vite remove o prefixo).
 | PORT              | 3000              | Porta do servidor HTTP               |
 | DMS_STORAGE_DIR   | `backend/storage` | Pasta de gravação dos arquivos       |
 | DMS_MAX_FILE_SIZE | 10485760 (10 MB)  | Tamanho máximo do arquivo, em bytes  |
+| DMS_MAX_STORAGE_SIZE | 1073741824 (1 GB) | Tamanho máximo total do diretório, em bytes |
+
+As variáveis numéricas devem ser inteiros positivos; `PORT` deve estar entre
+1 e 65535. Valores inválidos impedem a inicialização. O upload aceita um único
+arquivo no campo `file`, sem campos de formulário adicionais. A quota total é
+calculada a partir dos arquivos regulares presentes no diretório e excedê-la
+retorna HTTP 507; o arquivo recusado é removido.
 
 ## 8. Decisões arquiteturais
 
@@ -156,7 +163,9 @@ Fluxo de dependência: `routes -> controllers -> services -> repositories`.
 ### Armazenamento
 
 - Arquivos em `DMS_STORAGE_DIR`, com nome gerado (UUID + extensão), evitando colisões e path traversal.
+- O repositório aceita apenas nomes armazenados no padrão UUID gerado pelo upload e confirma que o caminho fica dentro do diretório configurado.
 - A pasta é criada na inicialização, se não existir.
+- O `mimeType` vem do cliente e é apenas declaratório; não há inspeção do conteúdo nem allowlist de formatos. Downloads usam `Content-Disposition: attachment` e `X-Content-Type-Options: nosniff`.
 
 ## 9. Riscos e mitigações
 
@@ -165,9 +174,11 @@ Fluxo de dependência: `routes -> controllers -> services -> repositories`.
 | Perda de metadados ao reiniciar o servidor    | Aceito nesta fase (RNF-02); documentar no README                  |
 | Arquivos órfãos no disco após falha           | Remover o arquivo gravado quando a criação do metadado falhar     |
 | Upload excessivo consumir disco               | Limite `DMS_MAX_FILE_SIZE` com resposta `413`                     |
+| Acúmulo de arquivos consumir o diretório       | Limite total `DMS_MAX_STORAGE_SIZE` com resposta `507`            |
 | Nome de arquivo malicioso (path traversal)    | Gravar com nome gerado; `originalName` usado apenas como metadado |
 | Acesso a documentos de outros usuários        | Checagem de dono no service antes do download (`403`)             |
 | Falsificação de `X-User-Id`                   | Aceito nesta fase; autenticação real fica fora do escopo          |
+| Arquivos sem metadados após reiniciar          | Não há limpeza automática; os arquivos continuam contando para a quota e exigem reconciliação operacional |
 
 ## 10. Plano de execução
 

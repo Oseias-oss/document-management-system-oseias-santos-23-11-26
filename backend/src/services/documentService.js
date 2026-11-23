@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const config = require('../config/env');
 const documentRepository = require('../repositories/documentRepository');
 const { HttpError } = require('../errors/HttpError');
 
@@ -7,8 +8,8 @@ function toPublicDocument(document) {
   return { id, originalName, mimeType, size, uploadedAt, owner };
 }
 
-async function createDocument(file, owner) {
-  const document = {
+function createDocumentRecord(file, owner) {
+  return {
     id: crypto.randomUUID(),
     originalName: file.originalname,
     storedName: file.filename,
@@ -17,14 +18,28 @@ async function createDocument(file, owner) {
     uploadedAt: new Date().toISOString(),
     owner,
   };
+}
 
+async function ensureStorageCapacity() {
+  const storageSize = await documentRepository.getStorageSize();
+  if (storageSize > config.maxStorageSize) {
+    throw new HttpError(507, 'O limite total de armazenamento foi atingido.');
+  }
+}
+
+async function persistDocument(document) {
   try {
+    await ensureStorageCapacity();
     documentRepository.save(document);
   } catch (error) {
     await documentRepository.removeFile(document.storedName);
     throw error;
   }
+}
 
+async function createDocument(file, owner) {
+  const document = createDocumentRecord(file, owner);
+  await persistDocument(document);
   return toPublicDocument(document);
 }
 

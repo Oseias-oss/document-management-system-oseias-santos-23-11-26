@@ -7,6 +7,7 @@ const path = require('node:path');
 const storageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dms-test-'));
 process.env.DMS_STORAGE_DIR = storageDir;
 process.env.DMS_MAX_FILE_SIZE = '1024';
+process.env.DMS_MAX_STORAGE_SIZE = '1000';
 
 const app = require('../src/app');
 const documentRepository = require('../src/repositories/documentRepository');
@@ -117,6 +118,47 @@ test('download retorna 404 quando o arquivo não existe no disco', async () => {
 
   assert.strictEqual(response.status, 404);
   assert.match((await response.json()).error, /não encontrado/i);
+});
+
+test('repositório rejeita nomes de arquivo que escapariam do diretório de storage', () => {
+  assert.throws(() => documentRepository.getFilePath('../fora.txt'), /inválido/i);
+  assert.throws(() => documentRepository.getFilePath('subdiretorio/arquivo.txt'), /inválido/i);
+  assert.throws(() => documentRepository.getFilePath('arquivo.txt'), /inválido/i);
+});
+
+test('upload respeita o limite total de armazenamento e remove o arquivo recusado', async () => {
+  const firstResponse = await uploadFile('ana', 'a'.repeat(600));
+  assert.strictEqual(firstResponse.status, 201);
+
+  const filesBefore = fs.readdirSync(storageDir).sort();
+  const secondResponse = await uploadFile('ana', 'b'.repeat(600));
+
+  assert.strictEqual(secondResponse.status, 507);
+  assert.match((await secondResponse.json()).error, /armazenamento/i);
+  assert.deepStrictEqual(fs.readdirSync(storageDir).sort(), filesBefore);
+});
+
+test('download informa que o navegador não deve interpretar o conteúdo', async () => {
+  const document = await (await uploadFile('ana', '<script>alert(1)</script>', 'nota.txt', 'text/html')).json();
+  const response = await fetch(`${baseUrl}/documents/${document.id}/download`, {
+    headers: { 'X-User-Id': 'ana' },
+  });
+
+  assert.strictEqual(response.headers.get('x-content-type-options'), 'nosniff');
+});
+
+test('upload rejeita campos multipart adicionais', async () => {
+  const form = new FormData();
+  form.append('file', new Blob(['conteudo']), 'teste.txt');
+  form.append('extra', 'nao permitido');
+
+  const response = await fetch(`${baseUrl}/upload`, {
+    method: 'POST',
+    headers: { 'X-User-Id': 'ana' },
+    body: form,
+  });
+
+  assert.strictEqual(response.status, 400);
 });
 
 test('upload remove o arquivo quando falha ao salvar metadados', async (context) => {
