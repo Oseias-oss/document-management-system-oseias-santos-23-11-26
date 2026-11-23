@@ -9,6 +9,7 @@ process.env.DMS_STORAGE_DIR = storageDir;
 process.env.DMS_MAX_FILE_SIZE = '1024';
 
 const app = require('../src/app');
+const documentRepository = require('../src/repositories/documentRepository');
 
 let server;
 let baseUrl;
@@ -35,6 +36,25 @@ function uploadFile(userId, content = 'conteudo de teste', name = 'teste.txt', t
 test('upload exige o cabeçalho X-User-Id', async () => {
   const response = await uploadFile(null);
   assert.strictEqual(response.status, 400);
+});
+
+test('upload exige um arquivo', async () => {
+  const response = await fetch(`${baseUrl}/upload`, {
+    method: 'POST',
+    headers: { 'X-User-Id': 'ana' },
+    body: new FormData(),
+  });
+
+  assert.strictEqual(response.status, 400);
+  assert.match((await response.json()).error, /arquivo/i);
+});
+
+test('listagem e download exigem o cabeçalho X-User-Id', async () => {
+  for (const route of ['/documents', '/documents/qualquer/download']) {
+    const response = await fetch(`${baseUrl}${route}`);
+    assert.strictEqual(response.status, 400);
+    assert.match((await response.json()).error, /X-User-Id/);
+  }
 });
 
 test('upload cria o documento e a listagem retorna somente os do dono', async () => {
@@ -84,6 +104,32 @@ test('download retorna 404 para documento inexistente', async () => {
   });
 
   assert.strictEqual(response.status, 404);
+});
+
+test('download retorna 404 quando o arquivo não existe no disco', async () => {
+  const document = await (await uploadFile('ana')).json();
+  const storedDocument = documentRepository.findById(document.id);
+  fs.unlinkSync(documentRepository.getFilePath(storedDocument.storedName));
+
+  const response = await fetch(`${baseUrl}/documents/${document.id}/download`, {
+    headers: { 'X-User-Id': 'ana' },
+  });
+
+  assert.strictEqual(response.status, 404);
+  assert.match((await response.json()).error, /não encontrado/i);
+});
+
+test('upload remove o arquivo quando falha ao salvar metadados', async (context) => {
+  const filesBefore = fs.readdirSync(storageDir).sort();
+  context.mock.method(documentRepository, 'save', () => {
+    throw new Error('Falha ao salvar metadados');
+  });
+  context.mock.method(console, 'error', () => {});
+
+  const response = await uploadFile('ana');
+
+  assert.strictEqual(response.status, 500);
+  assert.deepStrictEqual(fs.readdirSync(storageDir).sort(), filesBefore);
 });
 
 test('upload recusa arquivo acima do tamanho máximo', async () => {
